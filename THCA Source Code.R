@@ -19,15 +19,19 @@ dim(cn)
 rownames(cn) <- cn$gene_name
 cn <- cn[,-1:-2]
 
+# no idea why!!!
+cn <- cn[,-c(178,223,226,246,339,428,485,474)]
+
 #sample types
 sampleID <- read.delim("../THCA/TCGA-LUAD/Data/gdc_sample_sheet.2022-06-11.tsv")
 i1 <- sampleID$Data.Type == "Gene Expression Quantification"
 sampleID <- sampleID[i1, , drop = F]
 sampleID <- sampleID[,7:8]
+sampleID <- distinct(sampleID, Sample.ID, .keep_all = T)
 a <- colnames(cn)
-for(i in 1:4){a <- sub('\\.', '-', a)}
-b <- data.frame(Sample.ID = a)
-c <- merge(b, sampleID, by.x = "Sample.ID", by.y = "Sample.ID", sort = F)
+for(i in 1:3){a <- sub('\\.', '-', a)}
+b <- data.frame(IDs = a)
+c <- merge(b, sampleID, by.x = "IDs", by.y = "Sample.ID", sort = F)
 colnames (cn) <- c$Sample.Type
 
 # we reached to our tidy dataset
@@ -40,11 +44,11 @@ cds <- DESeqDataSetFromMatrix(cn, colData, design = ~group)
 cds <- DESeq(cds)
 cnt <- log2(1+(counts(cds, normalize = T))) #getting normalized counts
 
-write.table(cnt, "~/desktop/LUAD/TCGA-LUAD/Results/expression(log2+1)(cnt).csv",  quote = F, col.names = T, row.names = T, sep = "\t")
+#write.table(cnt, "~/desktop/LUAD/TCGA-LUAD/Results/expression(log2+1)(cnt).csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 
 #DEGs
 dif <- results(cds, c("group", "Solid Tissue Normal" , "Primary Tumor"))
-write.table(dif, "~/desktop/Systematic Review/TCGA-LUAD/Results/dif.csv",  quote = F, col.names = T, row.names = T, sep = "\t")
+#write.table(dif, "~/desktop/Systematic Review/TCGA-LUAD/Results/dif.csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 
 #checkpoint
 sorted_dif <- data.frame(results(cds, c("group", "Solid Tissue Normal" , "Primary Tumor"))) #which one should be the first — order is important
@@ -167,7 +171,7 @@ dim(data)
 data.subset2 <- data[,!(colnames(data) %in% trim.pca)]
 dim(data.subset2)
 
-########
+################################################################
 final.trim <- c("TCGA.55.8092.01A",
               "TCGA.05.4382.01A",
               "TCGA.86.6851.01A",
@@ -214,9 +218,107 @@ final.trim <- c("TCGA.55.8092.01A",
               "TCGA.69.A59K.01A",
               "TCGA.05.4426.01A")
 
-data.trimmed <- data[,!(colnames(data) %in% final.trim)]
+data.subset <- data[,!(colnames(data) %in% final.trim)]
 
 ### Normalizing ----------------------------
 # Clinical data
+colData <- data.frame(sample.ID = colnames(data.subset))
+dds <- DESeqDataSetFromMatrix(countData =  data.subset, colData = colData, design = ~1) #not Specifying model
+
+#suggested by WGCNA on RNASeq FAQ
+dds75 <- dds[rowSums(counts(dds) >= 15) >= 24,]
+nrow(dds75) #26904 genes
+
+#Variance stabilization
+dds_norm <- vst(dds75)
+
+
+## WGCNA needs transposed matrix which `colnames` will be genes and `rownames` will be the samples
+#Normalize counts
+norm_counts <- assay(dds_norm) %>% 
+  t()
+
+
+#========================
+#Chapter Three
+#Network Construction
+
+#Choose a set of soft thershold powers
+power <- c(c(1:10) , seq(from = 12, to = 50, by = 2))
+
+library(doParallel)
+sft <- pickSoftThreshold(norm_counts, powerVector = power, networkType = "signed", verbose = 5)
+# based on this matrix we will able to chose the best varablie in order to make our scale free topology
+sft_Data <- sft$fitIndices
+
+# visualization
+library(ggplot2)
+a1 <- ggplot(sft_Data, aes(Power, SFT.R.sq, label = Power)) +geom_point () + geom_text(nudge_y = 0.1) +
+  geom_hline(yintercept = 0.8, color = 'red') + labs(x = 'Power', y = 'Scale free topology model fit, signed R^2') + theme_classic()
+
+
+a2 <- ggplot(sft_Data, aes(Power, mean.k., label = Power)) + geom_point () + geom_text(nudge_y = 0.1) +
+  labs(x = "Power", y =  "Mean Connectivity") + theme_classic ()
+
+pdf("~/desktop/Scale free topology model fit, signed R^2.pdf", width = 15, height = 7.5) # should use 4
+a1
+dev.off()
+
+pdf("~/desktop/Mean Connectivity.pdf", width = 15, height = 7.5)
+a2
+dev.off()
+
+
+# Convert matrix to numeric
+norm_counts[] <- sapply(norm_counts, as.numeric)
+soft_power = 4
+temp_cor <- cor
+cor <- WGCNA::cor
+
+#memory estimate w.r.t blocksize
+
+bwnet <- blockwiseModules(norm_counts,
+                          maxBlockSize=8000,
+                          TOMType = "signed",
+                          power = soft_power,
+                          mergeCutHeight = 0.25,
+                          numericLabels = FALSE,
+                          randomSeed = 1234,
+                          verbose = 3)
+
+cor <- temp_cor
+
+
+# Learning section — Deprogram ___:
+
+den.merge <- bwnet[["dendrograms"]][[1]][["merge"]]
+den.height <- bwnet[["dendrograms"]][[1]][["height"]]
+den.order <- bwnet[["dendrograms"]][[1]][["order"]]
+
+write.table(den.merge,"~/desktop/den.merge (LUAD-TCGA).csv" ,  quote = F, col.names = T, row.names = T, sep = "\t" )
+write.table(den.height,"~/desktop/den.height (LUAD-TCGA).csv" ,  quote = F, col.names = T, row.names = T, sep = "\t" )
+write.table(den.order,"~/desktop/den.order (LUAD-TCGA).csv" ,  quote = F, col.names = T, row.names = T, sep = "\t" )
+
+# 5. Module Eigengenes
+module_eigengenes <- bwnet$MEs
+# Print out a preview
+head(module_eigengenes)
+write.table(module_eigengenes,"~/desktop/module_eigengenes (LUAD-TCGA).csv" ,  quote = F, col.names = T, row.names = T, sep = "\t" )
+
+
+
+# get number of genes for each module
+colors <- table(bwnet$colors)
+write.table(colors,"~/desktop/colors (LUAD-TCGA).csv" ,  quote = F, col.names = T, row.names = T, sep = "\t" )
+
+# Plot the dendrogram and the module colors before and after merging underneath
+pdf("~/Desktop/LUAD-TCGA-WGCNA-Dendrogram.pdf", width = 100, height = 60)
+Dendogram <- plotDendroAndColors(bwnet$dendrograms[[1]], cbind(bwnet$unmergedColors, bwnet$colors),
+                                 c("unmerged", "merged"), 
+                                 dendroLabels = F, 
+                                 addGuide = T, 
+                                 hang = 0.03, 
+                                 guideHang = 0.05)
+
 
 
