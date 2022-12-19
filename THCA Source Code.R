@@ -12,11 +12,11 @@ cn <- ex #backup
 
 library(dplyr)
 dim(cn)
-cn <- distinct(cn, gene_name, .keep_all = TRUE)
+cn <- distinct(cn, gene_id, .keep_all = TRUE)
 dim(cn)
-# lose 1233 genes
+# lose 1233 genes but with geneID we loose nothing
 
-rownames(cn) <- cn$gene_name
+rownames(cn) <- cn$gene_id
 cn <- cn[,-1:-2]
 
 # no idea why!!!
@@ -32,9 +32,10 @@ a <- colnames(cn)
 for(i in 1:3){a <- sub('\\.', '-', a)}
 b <- data.frame(IDs = a)
 c <- merge(b, sampleID, by.x = "IDs", by.y = "Sample.ID", sort = F)
+c$Sample.Type <- paste0(c$Sample.Type,".", seq_along(c$Sample.Type))
 colnames (cn) <- c$Sample.Type
 
-# we reached to our tidy dataset
+# we reached to our tidy data set
 
 library(DESeq2)
 gr <- factor(c$Sample.Type)
@@ -54,6 +55,8 @@ dif <- results(cds, c("group", "Solid Tissue Normal" , "Primary Tumor"))
 sorted_dif <- data.frame(results(cds, c("group", "Solid Tissue Normal" , "Primary Tumor"))) #which one should be the first — order is important
 sorted_dif$padj <- p.adjust(sorted_dif$pvalue, method = "BH")
 sorted_dif <- sorted_dif[order(sorted_dif$padj),]
+
+
 
 setwd("~/desktop")
 X  <- subset(sorted_dif, log2FoldChange > 1  & padj < 0.05)
@@ -319,6 +322,34 @@ Dendogram <- plotDendroAndColors(bwnet$dendrograms[[1]], cbind(bwnet$unmergedCol
                                  addGuide = T, 
                                  hang = 0.03, 
                                  guideHang = 0.05)
+
+
+#========================
+#Chapter Four
+#Downstream analysis
+
+library(DEGreport)
+# we are referring to `cds` which was our DEGs module in line 44
+Counts <- counts(cds, normalized = T)
+Counts2 <- counts(cds)
+design <- as.data.frame(colData(cds))
+
+#Size factor QC
+
+Size.factor.QC.Plot.Normalized <- degCheckFactors(Counts[, 1:105])
+Size.factor.QC.Plot <- degCheckFactors(Counts2[, 1:105])
+
+Mean.Variance.QC.plots.normalized <- degQC(Counts, design[["group"]], pvalue = res[["pvalue"]])
+Mean.Variance.QC.plots <- degQC(Counts2, design[["group"]], pvalue = res[["pvalue"]])
+
+
+
+resCov <- degCovariates(log2(counts(cds)+0.5), 
+                        colData(cds))
+
+rownames(colData) <- colData$group
+cor <- degCorCov(colData(cds))
+
 
 
 
