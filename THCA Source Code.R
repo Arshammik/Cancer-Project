@@ -32,30 +32,30 @@ a <- colnames(cn)
 for(i in 1:3){a <- sub('\\.', '-', a)}
 b <- data.frame(IDs = a)
 c <- merge(b, sampleID, by.x = "IDs", by.y = "Sample.ID", sort = F)
-c$Sample.Type <- paste0(c$Sample.Type,".", seq_along(c$Sample.Type))
-colnames (cn) <- c$Sample.Type
+for(i in 1:3){c$IDs <- sub('\\-', '.', c$IDs)}
 
 # we reached to our tidy data set
 
 library(DESeq2)
+con <- factor(paste0(c$Sample.Type, seq_along(c$Sample.Type)))
 gr <- factor(c$Sample.Type)
-colSums(cn) #Through this we can demonstrates 
-colData <- data.frame(group = gr, type = "paired-end")
-cds <- DESeqDataSetFromMatrix(cn, colData, design = ~group)
-cds <- DESeq(cds)
-cnt <- log2(1+(counts(cds, normalize = T))) #getting normalized counts
+#colSums(cn)
+colData <- data.frame(condition = con,group = gr , type = "paired-end")
+rownames(colData) <- c$IDs
+cds <- DESeqDataSetFromMatrix(cn, colData, design = ~group) 
+cds <- DESeq(cds) #Constructing DESeq2  dataset
+cnt <- log2(1+(counts(cds, normalize = T))) #getting normalized counts `count matrix`
 
 #write.table(cnt, "~/desktop/LUAD/TCGA-LUAD/Results/expression(log2+1)(cnt).csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 
 #DEGs
-dif <- results(cds, c("group", "Solid Tissue Normal" , "Primary Tumor"))
+dif <- results(cds, c("group", "Primary Tumor", "Solid Tissue Normal"))
 #write.table(dif, "~/desktop/Systematic Review/TCGA-LUAD/Results/dif.csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 
 #checkpoint
-sorted_dif <- data.frame(results(cds, c("group", "Solid Tissue Normal" , "Primary Tumor"))) #which one should be the first — order is important
+sorted_dif <- data.frame(results(cds, c("group", "Primary Tumor", "Solid Tissue Normal"))) 
 sorted_dif$padj <- p.adjust(sorted_dif$pvalue, method = "BH")
 sorted_dif <- sorted_dif[order(sorted_dif$padj),]
-
 
 
 setwd("~/desktop")
@@ -336,20 +336,10 @@ design <- as.data.frame(colData(cds))
 
 #Size factor QC
 
-Size.factor.QC.Plot.Normalized <- degCheckFactors(Counts[, 1:105])
+Size.factor.QC.Plot.Normalized <- degCheckFactors(cnt[, 1:105])
 Size.factor.QC.Plot <- degCheckFactors(Counts2[, 1:105])
 
 Mean.Variance.QC.plots.normalized <- degQC(Counts, design[["group"]], pvalue = res[["pvalue"]])
 Mean.Variance.QC.plots <- degQC(Counts2, design[["group"]], pvalue = res[["pvalue"]])
-
-
-
-resCov <- degCovariates(log2(counts(cds)+0.5), 
-                        colData(cds))
-
-rownames(colData) <- colData$group
-cor <- degCorCov(colData(cds))
-
-
 
 
