@@ -70,7 +70,6 @@ write.table(subset(Y), "Down regulated (LUAD-TCGA).csv",  quote = F, col.names =
 
 data <- ex
 dim(data)
-data <- distinct(data, gene_name, .keep_all = TRUE)
 dim(data)
 rownames(data) <- data$gene_id
 data <- data [,-1:-2]
@@ -123,7 +122,7 @@ plot(htree2)
 dev.off()
 
 # pca
-pca <- prcomp(t(data))
+pca <- prcomp(data)
 pca.data <- pca$x
 
 pca.var.percent <- pca$sdev^2
@@ -329,6 +328,8 @@ Dendogram <- plotDendroAndColors(bwnet$dendrograms[[1]], cbind(bwnet$unmergedCol
 #Downstream analysis
 
 library(DEGreport)
+library(edgeR)
+library(limma)
 # we are referring to `cds` which was our DEGs module in line 44
 Counts <- counts(cds, normalized = T)
 Counts2 <- counts(cds)
@@ -342,4 +343,26 @@ Size.factor.QC.Plot <- degCheckFactors(Counts2[, 1:105])
 Mean.Variance.QC.plots.normalized <- degQC(Counts, design[["group"]], pvalue = res[["pvalue"]])
 Mean.Variance.QC.plots <- degQC(Counts2, design[["group"]], pvalue = res[["pvalue"]])
 
+sig <- significants(dif, fc = 0, fdr = 0.05, full = T)
+sig <- data.frame(sig)
 
+
+difma <- as.DEGSet(dif, default = "raw", extras = NULL)
+
+pdf("degMA—(LUAD-TCGA).pdf", width = 14, height = 8)
+degMA(difma, diff = 2, limit = 3)
+degMA(difma, diff = 2, limit = 3, raw = T)
+degMA(difma,limit = 3,correlation = T)
+dev.off()
+
+pdf("degPlot(20)—(LUAD-TCGA).pdf", width = 14, height = 8)
+degPlot(dds = cds, res = dif, n = 20, xs = "group")
+dev.off()
+
+
+pdf("degPlotWide—(LUAD-TCGA).pdf", width = 14, height = 8)
+degPlotWide(cds, rownames(cds), group = "group")
+dev.off()
+
+ma <- cnt
+res <- degPatterns(ma[,1:10], colData[1:10,], time = "group")
