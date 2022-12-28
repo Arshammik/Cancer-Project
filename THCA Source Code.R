@@ -32,16 +32,17 @@ a <- colnames(cn)
 for(i in 1:3){a <- sub('\\.', '-', a)}
 b <- data.frame(IDs = a)
 c <- merge(b, sampleID, by.x = "IDs", by.y = "Sample.ID", sort = F)
+cc <- data.frame(sample = sub("Primary Tumor", "PRT", c$Sample.Type))
+cc <- data.frame(sample = sub("Solid Tissue Normal", "STN", cc$sample))
 for(i in 1:3){c$IDs <- sub('\\-', '.', c$IDs)}
-
+colnames(cn) <- cc$sample
 # we reached to our tidy data set
 
 library(DESeq2)
 con <- factor(paste0(c$Sample.Type, seq_along(c$Sample.Type)))
-gr <- factor(c$Sample.Type)
+gr <- factor(cc$sample)
 #colSums(cn)
 colData <- data.frame(condition = con,group = gr , type = "paired-end")
-rownames(colData) <- c$IDs
 cds <- DESeqDataSetFromMatrix(cn, colData, design = ~group) 
 cds <- DESeq(cds) #Constructing DESeq2  dataset
 cnt <- log2(1+(counts(cds, normalize = T))) #getting normalized counts `count matrix`
@@ -49,18 +50,18 @@ cnt <- log2(1+(counts(cds, normalize = T))) #getting normalized counts `count ma
 #write.table(cnt, "~/desktop/LUAD/TCGA-LUAD/Results/expression(log2+1)(cnt).csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 
 #DEGs
-dif <- results(cds, c("group", "Primary Tumor", "Solid Tissue Normal"))
+dif <- results(cds, c("group", "PRT", "STN"))
 #write.table(dif, "~/desktop/Systematic Review/TCGA-LUAD/Results/dif.csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 
 #checkpoint
-sorted_dif <- data.frame(results(cds, c("group", "Primary Tumor", "Solid Tissue Normal"))) 
+sorted_dif <- data.frame(results(cds, c("group", "PRT", "STN"))) 
 sorted_dif$padj <- p.adjust(sorted_dif$pvalue, method = "BH")
 sorted_dif <- sorted_dif[order(sorted_dif$padj),]
 
 
 setwd("~/desktop")
-X  <- subset(sorted_dif, log2FoldChange > 1  & padj < 0.05)
-Y  <- subset(sorted_dif, log2FoldChange < -1  & padj < 0.05)
+X  <- subset(sorted_dif, log2FoldChange > 2  & padj < 0.05)
+Y  <- subset(sorted_dif, log2FoldChange < -2  & padj < 0.05)
 write.table(subset(X), "Up regulated (LUAD-TCGA).csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 write.table(subset(Y), "Down regulated (LUAD-TCGA).csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 
@@ -346,6 +347,22 @@ Mean.Variance.QC.plots <- degQC(Counts2, design[["group"]], pvalue = res[["pvalu
 sig <- significants(dif, fc = 0, fdr = 0.05, full = T)
 sig <- data.frame(sig)
 
+X <- X[order(X$log2FoldChange),]
+Y <- Y[order(Y$log2FoldChange),]
+
+setwd("~/desktop/")
+pdf("DEGs.pdf")
+
+X_sig  <- subset(sig, log2FoldChange > 2  & padj < 0.05)
+Y_sig  <- subset(sig, log2FoldChange < -2  & padj < 0.05)
+
+plot(X$log2FoldChange, main = "Normal DEGs.Up Regulated Gens(4707)")
+plot(X_sig$log2FoldChange, main = "Significant DEGs.Up Regulated Gens(4752)")
+plot(Y$log2FoldChange, main = "Normal DEGs.Down Regulated Gens(1024)")
+plot(Y_sig$log2FoldChange, main = "Significant DEGs.Down Regulated Gens(1005)")
+dev.off()
+
+
 
 difma <- as.DEGSet(dif, default = "raw", extras = NULL)
 
@@ -416,7 +433,6 @@ diseased_vs_healthy %>%
   scale_x_continuous(breaks = c(seq(-10, 10, 2)),       
                      limits = c(-10, 10))  
 dev.off()
-
 
 
 
