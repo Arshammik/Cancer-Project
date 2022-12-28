@@ -45,7 +45,23 @@ gr <- factor(cc$sample)
 colData <- data.frame(condition = con,group = gr , type = "paired-end")
 cds <- DESeqDataSetFromMatrix(cn, colData, design = ~group) 
 cds <- DESeq(cds) #Constructing DESeq2  dataset
-cnt <- log2(1+(counts(cds, normalize = T))) #getting normalized counts `count matrix`
+
+#######################
+#cnt <- log2(1+(counts(cds, normalize = T))) #getting normalized counts `count matrix`
+#cdd <- DESeqDataSetFromMatrix(round(cnt), colData, design = ~group) 
+#cdd <- DESeq(cdd)
+#dif2 <- data.frame(results(cdd, c("group", "PRT", "STN")))
+#dif2$padj <- p.adjust(dif2$pvalue, method = "BH")
+#XX  <- subset(dif2, log2FoldChange > 2  & padj < 0.05)
+#YY  <-subset(dif2, log2FoldChange < -2  & padj < 0.05)
+XX <- XX[order(XX$log2FoldChange),]
+YY <- YY[order(YY$log2FoldChange),]
+dim(XX) #593
+dim(YY) #117
+plot(XX$log2FoldChange)
+plot(YY$log2FoldChange)
+#########################
+
 
 #write.table(cnt, "~/desktop/LUAD/TCGA-LUAD/Results/expression(log2+1)(cnt).csv",  quote = F, col.names = T, row.names = T, sep = "\t")
 
@@ -398,10 +414,10 @@ ggplot(sorted_dif, aes(log2FoldChange, -log10(padj), col=express)) +
 
 dev.off()
 
-pdf("valcanoplot colorful.pdf", width = 15, height = 15)
+pdf("valcanoplot colorful LUAD.pdf", width = 15, height = 15)
 diseased_vs_healthy <- sorted_dif %>%
-  mutate(gene_type = case_when(log2FoldChange >= 1 & padj <= 0.05 ~ "up",
-                               log2FoldChange <= -1 & padj <= 0.05 ~ "down",
+  mutate(gene_type = case_when(log2FoldChange >= 2 & padj <= 0.05 ~ "up",
+                               log2FoldChange <= -2 & padj <= 0.05 ~ "down",
                                TRUE ~ "ns")) 
 
 
