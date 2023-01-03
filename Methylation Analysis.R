@@ -45,7 +45,20 @@ CpG.GUI()
 QC.GUI(beta=myLoad$beta,arraytype="450K") # We have diffrent results because `champ.filter()` function
 
 
+"""
+On Illumina beadarrays, probes come in two di!erent designs (called type-I and type-II), 
+with diferent hybridization chemistries, which means that probes from these two diferent 
+designs will exhibit di!erent distributions.
+
+## type-II distribution exhibit a reduced dynamic range.
+## In general, adjustment for the type-II probe bias is recommended
+"""
+
 myNorm <- champ.norm(beta=myLoad$beta,arraytype="450K",cores=5)
+QC.GUI(beta = myNorm) #checking the type I and II plot after normalization
+
+
+# Singular value decomposition
 champ.SVD(beta=myNorm,pd=myLoad$pd)
 
 myDMP  <- champ.DMP()
