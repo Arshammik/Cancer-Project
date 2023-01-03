@@ -35,3 +35,19 @@ library(ChAMP)
 
 setwd("~/desktop/Methylation Analysis/")
 myLoad <- champ.load("~/desktop/Methylation Analysis/Data/GSE77954_RAW/")
+
+CpG.GUI(CpG=rownames(myLoad$beta),arraytype="450K")
+
+champ.QC()  # Alternatively: QC.GUI()
+
+
+myNorm <- champ.norm()
+champ.SVD()
+
+myDMP  <- champ.DMP()
+DMP.GUI()
+
+myDMR <- champ.DMR()
+DMR.GUI()
+
+myGSEA <- champ.GSEA() 
