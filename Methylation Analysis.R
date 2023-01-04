@@ -25,8 +25,8 @@ PD <- data.frame(Sample_Name = GSE77954$Sample_Name,
                        Pool_ID = NA,
                        Project = NA,
                        Sample_Well = NA,
-                       Slide(Sentrix_ID) = Sentix_ID$Sentix_ID,
-                       Array(Sentrix_Position) = Sentix_ID$Sentix_Position)
+                       Sentrix_ID = Sentix_ID$Sentix_ID,
+                       Sentrix_Position = Sentix_ID$Sentix_Position)
 write.csv(csv_file, "~/desktop/Methylation Analysis/Data/GSE77954_RAW/csv_file.csv")
 
 # Start the analysis
@@ -59,8 +59,8 @@ QC.GUI(beta = myNorm) #checking the type I and II plot after normalization
 
 
 # Singular value decomposition
-champ.SVD(beta=myNorm,pd=myLoad$pd)
-
+champ.SVD(beta=myNorm,pd=myLoad$pd,)
+RGE!ect=TRUE
 myDMP  <- champ.DMP()
 DMP.GUI()
 
