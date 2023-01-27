@@ -142,7 +142,7 @@ dev.off()
 pca <- prcomp(data)
 pca.data <- pca$x
 
-pca.var.percent <- pca$sdev^2
+pca.var <- pca$sdev^2
 pca.var.percent <- round(pca.var/sum(pca.var)*100, digits = 2)
 
 pca.data <- as.data.frame(pca.data)
